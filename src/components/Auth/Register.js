@@ -1,5 +1,6 @@
 import React from "react";
-import firebase from '../../firebase';
+import firebase from "../../firebase";
+import md5 from "md5"
 import {
   Grid,
   Form,
@@ -18,7 +19,8 @@ class Register extends React.Component {
     password: '',
     passwordConfirmation: '',
     errors: [],
-    loading: false
+    loading: false,
+    userRef: firebase.database().ref("user")
   };
 
   isFormValid = () => {
@@ -73,13 +75,38 @@ class Register extends React.Component {
         .createUserWithEmailAndPassword(this.state.email, this.state.password)
         .then(createUser => {
           console.log(createUser);
-          this.setState({ loading: false });
+          createUser.user
+            .updateProfile({
+              displayName: this.state.username,
+              photoURL: `http://gravatar.com/avatar/${md5(createUser.user.email)}?d=identicon`
+            })
+            .then(() => {
+              this.saveUser(createUser).then(() => {
+                console.log("user saved")
+                this.setState({
+                  loading: false
+                })
+              })
+            })
+            .catch(err => {
+              console.error(err);
+              this.setState({
+                errors: this.state.errors.concat(err), loading: false
+              })
+            })
         })
         .catch(err => {
           console.error(err);
           this.setState({ errors: this.state.errors.concat(err), loading: false });
         });
     }
+  };
+
+  saveUser = createUser => {
+    return this.state.userRef.child(createUser.user.uid).set({
+      name: createUser.user.displayName,
+      avator: createUser.user.photoURL
+    });
   };
 
   handleInputError = (errors, inputName) => {
